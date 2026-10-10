@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐑 ひつじカウンター - おやすみなさい</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300;400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Zen Maru Gothic',sans-serif;overflow:hidden;width:100vw;height:100vh;background:#0a0a1a;user-select:none}
+
+#bg{position:fixed;inset:0;background-image:url('assets/夜の草原と柵.png');background-size:cover;background-position:center bottom;z-index:0}
+#dark-overlay{position:fixed;inset:0;background:rgba(0,0,20,0);z-index:1;pointer-events:none;transition:background 3s}
+#stars{position:fixed;inset:0;z-index:2;pointer-events:none}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle var(--d,3s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.9}}
+
+/* ヘッダー */
+#header{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 20px;z-index:100;background:linear-gradient(to bottom,rgba(0,0,20,.75),transparent)}
+#clock{font-size:2rem;color:#e8d5a3;text-shadow:0 0 10px rgba(232,213,163,.5);letter-spacing:.1em}
+.header-right{display:flex;align-items:center;gap:12px}
+#alarm-status-hd{font-size:.75rem;color:rgba(232,213,163,.6);white-space:nowrap}
+#alarm-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#e8d5a3;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:.9rem;font-family:inherit;transition:background .2s}
+#alarm-btn:hover{background:rgba(255,255,255,.22)}
+
+/* 舞台 */
+#stage{position:fixed;top:0;left:0;right:0;bottom:80px;z-index:3;overflow:hidden;pointer-events:none}
+#sheep{position:absolute;width:480px;height:auto;bottom:22%;right:-520px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));transition:none}
+
+/* カウント */
+#count-wrap{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5;pointer-events:none}
+#count-text{font-size:1.5rem;color:rgba(255,255,255,.95);text-shadow:0 2px 12px rgba(0,0,0,.9);opacity:0;letter-spacing:.05em;white-space:nowrap}
+@keyframes fadeCount{0%{opacity:0;transform:translateY(12px)}25%{opacity:1;transform:translateY(0)}75%{opacity:1}100%{opacity:0}}
+
+#total-count{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);font-size:1rem;color:rgba(232,213,163,.85);z-index:6;pointer-events:none;letter-spacing:.08em;white-space:nowrap}
+#goodnight{position:fixed;top:38%;left:50%;transform:translate(-50%,-50%);font-size:1.8rem;color:rgba(232,213,163,.9);text-shadow:0 0 20px rgba(232,213,163,.5);opacity:0;transition:opacity 3s;z-index:7;pointer-events:none;letter-spacing:.2em}
+
+/* コントロールバー（2行レイアウト） */
+#controls{position:fixed;bottom:0;left:0;right:0;height:90px;background:rgba(0,0,20,.88);border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 24px;z-index:100;gap:6px}
+.ctrl-row{display:flex;align-items:center;justify-content:center;gap:20px;width:100%}
+.ctrl-grp{display:flex;align-items:center;gap:8px}
+.ctrl-lbl{color:rgba(232,213,163,.7);font-size:.75rem;white-space:nowrap}
+
+/* スライダー共通 */
+.vol-slider{-webkit-appearance:none;width:90px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer}
+.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#e8d5a3;border-radius:50%;cursor:pointer}
+#mute-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#e8d5a3;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;transition:background .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#mute-btn:hover{background:rgba(255,255,255,.18)}
+
+#start-btn{background:linear-gradient(135deg,#6b9ee8,#8b6be8);border:none;color:#fff;padding:10px 24px;border-radius:20px;cursor:pointer;font-size:.95rem;font-family:inherit;box-shadow:0 4px 15px rgba(107,158,232,.35);transition:transform .15s,box-shadow .15s;flex-shrink:0}
+#start-btn:hover{transform:scale(1.06);box-shadow:0 6px 20px rgba(107,158,232,.5)}
+#start-btn:active{transform:scale(.97)}
+#start-btn.stop{background:linear-gradient(135deg,#e86b6b,#e86bb5);box-shadow:0 4px 15px rgba(232,107,107,.35)}
+
+#alarm-status2{color:rgba(232,213,163,.8);font-size:.78rem;white-space:nowrap}
+.test-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#e8d5a3;padding:4px 10px;border-radius:10px;cursor:pointer;font-size:.75rem;font-family:inherit;transition:background .2s;white-space:nowrap}
+.test-btn:hover{background:rgba(255,255,255,.18)}
+
+/* モーダル */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.mbox{background:rgba(8,8,28,.96);border:1px solid rgba(232,213,163,.3);border-radius:16px;padding:32px;min-width:300px;text-align:center;color:#e8d5a3;box-shadow:0 20px 60px rgba(0,0,0,.85)}
+.mbox h3{font-size:1.3rem;margin-bottom:20px}
+.mbox input[type=time]{background:rgba(255,255,255,.1);border:1px solid rgba(232,213,163,.4);color:#e8d5a3;padding:8px 16px;border-radius:8px;font-size:1.2rem;font-family:inherit;margin-bottom:16px;color-scheme:dark}
+.mbtns{display:flex;gap:10px;justify-content:center;margin-top:12px}
+.mbtns button{padding:9px 22px;border-radius:12px;border:1px solid rgba(232,213,163,.3);background:rgba(255,255,255,.1);color:#e8d5a3;cursor:pointer;font-family:inherit;font-size:.95rem;transition:background .2s}
+.mbtns button:hover{background:rgba(255,255,255,.2)}
+.mbtns .pri{background:linear-gradient(135deg,#6b9ee8,#8b6be8);border-color:transparent}
+/* 眠り羊レイヤー（草原エリア、画面下25%） */
+#sleeping-layer{position:fixed;bottom:80px;left:0;right:0;height:25vh;z-index:2;pointer-events:none;overflow:hidden}
+.zzz-sheep{position:absolute;width:480px;height:auto;opacity:0;transition:opacity 3s ease;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
+.zzz-sheep.visible{opacity:1}
+@keyframes popIn{0%{transform:scale(.82);opacity:0}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+<div id="dark-overlay"></div>
+<div id="stars"></div>
+<div id="sleeping-layer"></div>
+
+<div id="header">
+  <div id="clock">00:00:00</div>
+  <div class="header-right">
+    <span id="alarm-status-hd">アラームなし</span>
+    <button id="alarm-btn">🔔 目覚まし設定</button>
+  </div>
+</div>
+
+<div id="stage">
+  <img id="sheep" src="assets/image_7d3023ad_transparent.png" alt="羊" style="position:absolute;width:480px;height:auto;bottom:22%;right:-520px;">
+</div>
+
+<div id="count-wrap"><div id="count-text"></div></div>
+<div id="total-count">🐑 まだ眠れていますか？</div>
+<div id="goodnight">おやすみなさい…💤</div>
+
+<div id="controls">
+  <!-- 上段: 音量コントロール群 -->
+  <div class="ctrl-row">
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">🎵 BGM</span>
+      <input type="range" class="vol-slider" id="bgm-slider" min="0" max="100" value="60">
+      <button id="mute-btn">🔊</button>
+    </div>
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">🗣 ボイス</span>
+      <input type="range" class="vol-slider" id="voice-slider" min="0" max="100" value="75">
+    </div>
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">🔔 アラーム</span>
+      <input type="range" class="vol-slider" id="alarm-vol-slider" min="0" max="100" value="100">
+      <button class="test-btn" id="alarm-test-btn">テスト</button>
+    </div>
+  </div>
+  <!-- 下段: スタートとアラーム状態 -->
+  <div class="ctrl-row">
+    <button id="start-btn">▶ スタート</button>
+    <div class="ctrl-grp">
+      <span class="ctrl-lbl">⏰</span>
+      <span id="alarm-status2">アラーム未設定</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="alarm-modal">
+  <div class="mbox">
+    <h3>🔔 目覚ましタイマー設定</h3>
+    <div><input type="time" id="alarm-time" value="07:00"></div>
+    <div class="mbtns">
+      <button id="btn-alarm-cancel">キャンセル</button>
+      <button class="pri" id="btn-alarm-set">セット ✓</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="wake-modal">
+  <div class="mbox" style="animation:popIn .6s ease">
+    <h3>🐓 おはようございます！</h3>
+    <p style="margin:16px 0;opacity:.85;line-height:1.8">よく眠れましたか？<br>今日も良い一日を 🌅</p>
+    <div class="mbtns">
+      <button class="pri" id="btn-dismiss">起きる！</button>
+    </div>
+  </div>
+</div>
+
+<audio id="bgm-audio" loop></audio>
+<audio id="alarm-audio"></audio>
+
+<script>
+// ======================================================
+// 羊の睡眠導入カウンター
+// ======================================================
+
+// --- 画像・音声パス ---
+var IMG_WALK  = 'assets/image_7d3023ad_transparent.png';
+var IMG_JUMP  = 'assets/image_8949a7a6_transparent.png';
+var IMG_SLEEP = 'assets/image_b4b8379f_transparent.png';
+var BGM_SRC   = 'assets/bgm.mp3';
+var ALARM_SRC = 'assets/alarm.mp3';
+
+// --- DOM要素 ---
+var elClock     = document.getElementById('clock');
+var elSheep     = document.getElementById('sheep');
+var elStartBtn  = document.getElementById('start-btn');
+var elMuteBtn   = document.getElementById('mute-btn');
+var elBgmSlider = document.getElementById('bgm-slider');
+var elAlarmBtn  = document.getElementById('alarm-btn');
+var elAlarmModal= document.getElementById('alarm-modal');
+var elWakeModal = document.getElementById('wake-modal');
+var elAlarmCancel= document.getElementById('btn-alarm-cancel');
+var elAlarmSet  = document.getElementById('btn-alarm-set');
+var elDismiss   = document.getElementById('btn-dismiss');
+var elAlarmTime = document.getElementById('alarm-time');
+var elAlarmHd   = document.getElementById('alarm-status-hd');
+var elAlarmSt2  = document.getElementById('alarm-status2');
+var elTotalCnt  = document.getElementById('total-count');
+var elCountText = document.getElementById('count-text');
+var elGoodnight = document.getElementById('goodnight');
+var elDarkOver  = document.getElementById('dark-overlay');
+var bgmAudio    = document.getElementById('bgm-audio');
+var alarmAudio  = document.getElementById('alarm-audio');
+
+// --- 音声ファイル設定 ---
+bgmAudio.src   = BGM_SRC;
+alarmAudio.src = ALARM_SRC;
+
+// --- 星を生成 ---
+(function generateStars() {
+  var container = document.getElementById('stars');
+  for (var i = 0; i < 80; i++) {
+    var s = document.createElement('div');
+    s.className = 'star';
+    var sz = Math.random() * 2.5 + 0.5;
+    s.style.width  = sz + 'px';
+    s.style.height = sz + 'px';
+    s.style.left   = (Math.random() * 100) + '%';
+    s.style.top    = (Math.random() * 60) + '%';
+    s.style.setProperty('--d',  (2 + Math.random() * 4) + 's');
+    s.style.setProperty('--dl', (Math.random() * 4) + 's');
+    container.appendChild(s);
+  }
+})();
+
+// --- 時計 ---
+function updateClock() {
+  var now = new Date();
+  var h  = String(now.getHours()).padStart(2,'0');
+  var m  = String(now.getMinutes()).padStart(2,'0');
+  var sc = String(now.getSeconds()).padStart(2,'0');
+  elClock.textContent = h + ':' + m + ':' + sc;
+  if (alarmTime && !alarmFired) checkAlarm(h, m);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// --- BGM制御 ---
+var bgmVolume = 0.6;
+var muted = false;
+bgmAudio.volume = bgmVolume;
+
+var elBgmSlider      = document.getElementById('bgm-slider');
+var elVoiceSlider    = document.getElementById('voice-slider');
+var elAlarmVolSlider = document.getElementById('alarm-vol-slider');
+var elAlarmTestBtn   = document.getElementById('alarm-test-btn');
+
+elBgmSlider.addEventListener('input', function() {
+  bgmVolume = this.value / 100;
+  if (!muted) bgmAudio.volume = bgmVolume;
+});
+
+elMuteBtn.addEventListener('click', function() {
+  muted = !muted;
+  bgmAudio.volume = muted ? 0 : bgmVolume;
+  elMuteBtn.textContent = muted ? '🔇' : '🔊';
+});
+
+// --- ボイス音量制御 ---
+var voiceVolume = 0.75;  // 基準ボイス音量（時間経過フェードのベース）
+elVoiceSlider.addEventListener('input', function() {
+  voiceVolume = this.value / 100;
+});
+
+// --- アラーム音量制御 ---
+var alarmVolume = 1.0;
+elAlarmVolSlider.addEventListener('input', function() {
+  alarmVolume = this.value / 100;
+  alarmAudio.volume = alarmVolume;
+});
+
+// アラームテストボタン
+elAlarmTestBtn.addEventListener('click', function() {
+  alarmAudio.pause();
+  alarmAudio.currentTime = 0;
+  alarmAudio.volume = alarmVolume;
+  alarmAudio.play().catch(function(e){ console.warn('AlarmTest:', e); });
+  // 3秒後に自動停止
+  setTimeout(function() {
+    alarmAudio.pause();
+    alarmAudio.currentTime = 0;
+  }, 3000);
+});
+
+// --- カウンター ---
+var count = 0;
+var running = false;
+var sheepTimer = null;
+var startTime = null;
+
+// --- 眠り羊管理 ---
+var SLEEP_SHEEP_MAX  = 50;   // 画面上の眠り羊の上限
+var sleepSheepCount  = 0;    // 現在の眠り羊数
+
+function addSleepingSheep() {
+  if (sleepSheepCount >= SLEEP_SHEEP_MAX) return;
+
+  var layer  = document.getElementById('sleeping-layer');
+  var layerW = layer.offsetWidth;
+  var layerH = layer.offsetHeight;
+  var sheepW = 480;
+  var sheepH = 280;  // 480px幅の眠り羊の概略高さ
+
+  var img = document.createElement('img');
+  img.src       = IMG_SLEEP;
+  img.className = 'zzz-sheep';
+  img.alt       = '眠り羊';
+
+  // ランダム位置（レイヤー内ではみ出さない範囲）
+  var x = Math.random() * Math.max(0, layerW - sheepW);
+  var y = Math.random() * Math.max(0, layerH - sheepH);
+  img.style.left   = x + 'px';
+  img.style.top    = y + 'px';
+
+  // 50%の確率で左右反転
+  if (Math.random() < 0.5) {
+    img.style.transform = 'scaleX(-1)';
+  }
+
+  layer.appendChild(img);
+  sleepSheepCount++;
+
+  // フェードイン（次フレームでopacityを変える）
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      img.classList.add('visible');
+    });
+  });
+}
+
+function clearSleepingSheep() {
+  var layer = document.getElementById('sleeping-layer');
+  layer.innerHTML = '';
+  sleepSheepCount = 0;
+}
+
+var JP_DISP = ['一','二','三','四','五','六','七','八','九','十'];
+// 機械音声用の正確な読み仮名（1〜10匹）
+var JP_READ = ['いっぴき','にひき','さんびき','よんひき','ごひき','ろっぴき','ななひき','はっぴき','きゅうひき','じゅっぴき'];
+
+function getCountText(n) {
+  if (n <= 10) return '羊が　' + JP_DISP[n-1] + '匹…';
+  return n + ' sheep…';
+}
+
+// --- Web Speech API ---
+var voices = [];
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  voices = speechSynthesis.getVoices();
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  speechSynthesis.addEventListener('voiceschanged', loadVoices);
+}
+
+function pickVoice(lang) {
+  if (!voices.length) loadVoices();
+  var isJa = lang === 'ja-JP';
+  var pool = voices.filter(function(v){ return v.lang.startsWith(isJa ? 'ja' : 'en'); });
+  var femKeys = ['female','haruka','kyoko','samantha','karen','victoria','tessa','zira'];
+  var fem = null;
+  for (var i = 0; i < pool.length; i++) {
+    var nm = pool[i].name.toLowerCase();
+    for (var j = 0; j < femKeys.length; j++) {
+      if (nm.indexOf(femKeys[j]) !== -1) { fem = pool[i]; break; }
+    }
+    if (fem) break;
+  }
+  return fem || pool[0] || null;
+}
+
+// --- sheepsound.m4a（11匹以降のウィスパー音） ---
+var sheepSoundAudio = new Audio('assets/sheepsound.m4a');
+
+function speakCount(n) {
+  var elapsed = startTime ? (Date.now() - startTime) / 3600000 : 0;
+  // ボイス音量スライダーを基準に時間経過でフェード
+  var vol = Math.max(0.05, voiceVolume * (1 - elapsed * 0.85));
+
+  if (n <= 10) {
+    // 1〜10匹: TTS「ひつじが、いっぴき〜じゅっぴき」
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance();
+    utter.lang   = 'ja-JP';
+    utter.text   = 'ひつじが、' + JP_READ[n-1];
+    var v = pickVoice('ja-JP');
+    if (v) utter.voice = v;
+    utter.volume = vol;
+    utter.rate   = 0.65;
+    utter.pitch  = 0.85;
+    speechSynthesis.speak(utter);
+  } else {
+    // 11匹以降: sheepsound.m4a を時間経過フェード付きで再生
+    sheepSoundAudio.currentTime = 0;
+    sheepSoundAudio.volume = vol;
+    sheepSoundAudio.play().catch(function(e){ console.warn('SheepSound:', e); });
+  }
+}
+
+// --- 1/fゆらぎ（ピンクノイズ）---
+// Voss-McCartney法による3オクターブ近似
+// 高周波（毎回）: ±50ms、中周波（2回に1回）: ±100ms、低周波（4回に1回）: ±150ms
+// 通常合計±100ms程度、稀に±300msまで到達
+var pinkOct  = [0, 0, 0];  // 3オクターブの状態
+var pinkTick = 0;          // サイクルカウンター
+var INTERVAL_BASE = 4000;  // 基本間隔[ms]／入眠同調の呼吸リズム
+
+function nextSheepInterval() {
+  pinkTick++;
+  // 高周波：毎サイクル更新（小さなランダム成分）
+  pinkOct[0] = Math.random() * 2 - 1;
+  // 中周波：2サイクルに1回更新（中程度のドリフト）
+  if (pinkTick % 2 === 0) pinkOct[1] = Math.random() * 2 - 1;
+  // 低周波：4サイクルに1回更新（稀な大きなゆらぎ）
+  if (pinkTick % 4 === 0) pinkOct[2] = Math.random() * 2 - 1;
+
+  // 次周波ほど大きな重み（ピンクノイズ特性）
+  var pink = pinkOct[0] * 50    // 高周波: ±50ms
+            + pinkOct[1] * 100  // 中周波: ±100ms
+            + pinkOct[2] * 150; // 低周波: ±150ms
+
+  // ±300msにクリップ
+  pink = Math.max(-300, Math.min(300, pink));
+  return Math.round(INTERVAL_BASE + pink);
+}
+
+// --- 羊アニメーション（右→左、左向きの羊に合わせた方向）---
+function runSheep() {
+  var stageW = document.getElementById('stage').offsetWidth;
+  // ジャンプ頂点(apex)でシープ中心が画面中央(stageW/2)になるよう計算
+  var approachRight = stageW * 0.5 - 336;
+
+  // 次の1/f間隔を事前に決定（ウォークアウト時間に使用）
+  var interval = nextSheepInterval();
+  // ウォークアウトは「間隔 - 2900ms」で切れ目なく退場。最小500ms保証
+  var walkOutMs = Math.max(500, interval - 2900);
+
+  elSheep.style.transition = 'none';
+  elSheep.src = IMG_WALK;
+  elSheep.style.right  = '-520px';
+  elSheep.style.left   = 'auto';
+  elSheep.style.bottom = '22%';
+  elSheep.style.transform = '';
+
+  // 右端から柵手前まで歩く（1.7s）
+  setTimeout(function() {
+    elSheep.style.transition = 'right 1.7s linear';
+    elSheep.style.right = approachRight + 'px';
+  }, 80);
+
+  // ジャンプ上昇（t=1800ms）→頂点が画面中央の柵の上
+  setTimeout(function() {
+    elSheep.src = IMG_JUMP;
+    elSheep.style.transition = 'right 0.85s ease-out, bottom 0.48s ease-out';
+    elSheep.style.right  = (approachRight + 120) + 'px';
+    elSheep.style.bottom = '46%';
+  }, 1800);
+
+  // ジャンプ着地（t=2300ms）
+  setTimeout(function() {
+    elSheep.style.transition = 'right 0.85s ease-in, bottom 0.44s ease-in';
+    elSheep.style.right  = (approachRight + 280) + 'px';
+    elSheep.style.bottom = '22%';
+  }, 2300);
+
+  // カウントアップ→左端へ退場（t=2900ms、退場所要時間は間隔に連動）
+  setTimeout(function() {
+    elSheep.src = IMG_WALK;
+    count++;
+    showCountText();
+    speakCount(count);
+    updateTotal();
+    applyFade();
+    elSheep.style.transition = 'right ' + (walkOutMs / 1000).toFixed(2) + 's linear';
+    elSheep.style.right = (stageW + 160) + 'px';
+  }, 2900);
+
+  // 1/f間隔で次の羊を呼び出す
+  sheepTimer = setTimeout(function() {
+    if (running) runSheep();
+  }, interval);
+}
+
+function showCountText() {
+  elCountText.style.animation = 'none';
+  elCountText.textContent = getCountText(count);
+  void elCountText.offsetWidth;
+  elCountText.style.animation = 'fadeCount 3s ease forwards';
+}
+
+function updateTotal() {
+  // 100匹の倍数で眠り羊を追加
+  if (count > 0 && count % 100 === 0) {
+    addSleepingSheep();
+  }
+  if (count < 50) {
+    elTotalCnt.textContent = '🐑 ' + count + '匹が柵を飛び越えました';
+  } else {
+    elTotalCnt.textContent = '💤 もう眠れそう… ' + count + ' sheep';
+    elGoodnight.style.opacity = '1';
+  }
+}
+
+function applyFade() {
+  if (!startTime) return;
+  var hrs = (Date.now() - startTime) / 3600000;
+  if (!muted) bgmAudio.volume = Math.max(0.03, bgmVolume * (1 - hrs * 0.7));
+  elDarkOver.style.background = 'rgba(0,0,20,' + Math.min(0.55, hrs * 0.45) + ')';
+}
+
+// --- スタート / ストップ ---
+elStartBtn.addEventListener('click', function() {
+  if (!running) {
+    running   = true;
+    startTime = Date.now();
+    count     = 0;
+    clearSleepingSheep();  // リスタート時に眠り羊リセット
+    elGoodnight.style.opacity = '0';
+    elStartBtn.textContent = '⏹ ストップ';
+    elStartBtn.classList.add('stop');
+    bgmAudio.play().catch(function(e){ console.warn('BGM:', e); });
+    loadVoices();
+    setTimeout(runSheep, 500);
+  } else {
+    stopAll();
+  }
+});
+
+function stopAll() {
+  running = false;
+  clearTimeout(sheepTimer);
+  bgmAudio.pause();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  elStartBtn.textContent = '▶ スタート';
+  elStartBtn.classList.remove('stop');
+}
+
+// --- アラーム ---
+var alarmTime  = null;
+var alarmFired = false;
+
+elAlarmBtn.addEventListener('click', function() {
+  elAlarmModal.classList.add('show');
+});
+elAlarmCancel.addEventListener('click', function() {
+  elAlarmModal.classList.remove('show');
+});
+elAlarmSet.addEventListener('click', function() {
+  var t = elAlarmTime.value;
+  if (!t) { elAlarmModal.classList.remove('show'); return; }
+  alarmTime  = t;
+  alarmFired = false;
+  elAlarmHd.textContent  = '⏰ ' + t;
+  elAlarmSt2.textContent = '⏰ ' + t + ' セット済';
+  elAlarmModal.classList.remove('show');
+});
+
+function checkAlarm(h, m) {
+  if ((h + ':' + m) === alarmTime) {
+    alarmFired = true;
+    fireAlarm();
+  }
+}
+
+function fireAlarm() {
+  stopAll();
+  alarmAudio.loop   = true;
+  alarmAudio.volume = alarmVolume;  // アラーム音量スライダーの値を反映
+  alarmAudio.play().catch(function(e){ console.warn('Alarm:', e); });
+  elWakeModal.classList.add('show');
+  // 画面中央に羊を表示（rightベース）
+  var stageW = document.getElementById('stage').offsetWidth;
+  elSheep.style.transition = 'right 0.6s ease, bottom 0.6s ease';
+  elSheep.src = IMG_SLEEP;
+  elSheep.style.right  = ((stageW / 2) - 240) + 'px';  // シープ480pxの中心が画面中央に
+  elSheep.style.left   = 'auto';
+  elSheep.style.bottom = '22%';
+  elSheep.style.transform = '';
+}
+
+elDismiss.addEventListener('click', function() {
+  alarmAudio.pause();
+  alarmAudio.currentTime = 0;
+  alarmAudio.loop = false;
+  elWakeModal.classList.remove('show');
+  alarmTime  = null;
+  alarmFired = false;
+  elAlarmHd.textContent  = 'アラームなし';
+  elAlarmSt2.textContent = 'アラーム未設定';
+  elSheep.style.transition = 'none';
+  elSheep.style.right     = '-520px';
+  elSheep.style.left      = 'auto';
+  elSheep.style.transform = '';
+  elSheep.src = IMG_WALK;
+});
+</script>
+</body>
+</html>
